@@ -76,70 +76,62 @@ bool RedisWriter::DoInit(const WriterInfo &info, int num_fields,
       uid_to_cid_mapping = true;
     } else {
       uid_to_cid_mapping = false;
+      list_key = info.path;
     }
   }
 
-  /**
-   * Format the timestamps
-   * NOTE: This string comparision implementation is currently the necessary
-   * way to do it, as there isn't a way to pass the Zeek enum into C++ enum.
-   * This makes the user interface consistent with the existing Zeek Logging
-   * configuration for the ASCII log output.
-   */
-  if (strcmp(json_timestamps.c_str(), "JSON::TS_EPOCH") == 0) {
-    tf = zeek::threading::formatter::JSON::TS_EPOCH;
-  } else if (strcmp(json_timestamps.c_str(), "JSON::TS_MILLIS") == 0) {
-    tf = zeek::threading::formatter::JSON::TS_MILLIS;
-  } else if (strcmp(json_timestamps.c_str(), "JSON::TS_ISO8601") == 0) {
-    tf = zeek::threading::formatter::JSON::TS_ISO8601;
-  } else {
-    Error(Fmt("RedisWriter::DoInit: Invalid JSON timestamp format %s",
-              json_timestamps.c_str()));
-    return false;
-  }
+    /**
+     * Format the timestamps
+     * NOTE: This string comparision implementation is currently the necessary
+     * way to do it, as there isn't a way to pass the Zeek enum into C++ enum.
+     * This makes the user interface consistent with the existing Zeek Logging
+     * configuration for the ASCII log output.
+     */
+    if (strcmp(json_timestamps.c_str(), "JSON::TS_EPOCH") == 0) {
+      tf = zeek::threading::formatter::JSON::TS_EPOCH;
+    } else if (strcmp(json_timestamps.c_str(), "JSON::TS_MILLIS") == 0) {
+      tf = zeek::threading::formatter::JSON::TS_MILLIS;
+    } else if (strcmp(json_timestamps.c_str(), "JSON::TS_ISO8601") == 0) {
+      tf = zeek::threading::formatter::JSON::TS_ISO8601;
+    } else {
+      Error(Fmt("RedisWriter::DoInit: Invalid JSON timestamp format %s",
+                json_timestamps.c_str()));
+      return false;
+    }
 
+    formatter = new zeek::threading::formatter::JSON(this, tf);
 
-  // initialize the formatter
-  // if (BifConst::Redis::tag_json) {
-  //   formatter = new zeek::threading::formatter::TaggedJSON(info.path, this, tf);
-  // } else {
-  formatter = new zeek::threading::formatter::JSON(this, tf);
-  // }
-
-  // is debug enabled
-  // std::string debug;
-  // debug.assign((const char *)zeek::BifConst::Redis::debug->Bytes(),
-  //              zeek::BifConst::Redis::debug->Len());
-  // bool is_debug(!debug.empty());
-  bool is_debug;
-  is_debug = debugging;
-  if (is_debug) {
-    MsgThread::Info(Fmt("Debug is turned on"));
-  }
-
-  // redis global configuration
-  sw::redis::ConnectionOptions connection_options;
-
-  connection_options.host = redis_host;
-  connection_options.port = redis_port;
-  connection_options.password = redis_password;
-  connection_options.db = redis_db;
-  sw::redis::ConnectionPoolOptions pool_options;
-
-  pool_options.size = pool_size;
-  pool_options.wait_timeout = std::chrono::milliseconds(100);
-
-  pool_options.connection_lifetime = std::chrono::minutes(pool_connection_lifetime);
-
-  if (!mocking) {
-    // create redis client
-    redis_client = std::make_unique<sw::redis::Redis>(connection_options, pool_options);
+    bool is_debug;
+    is_debug = debugging;
     if (is_debug) {
-      MsgThread::Info(Fmt("Successfully connected to Redis instance."));
+      MsgThread::Info(Fmt("Debug is turned on"));
     }
+
+    // redis global configuration
+    sw::redis::ConnectionOptions connection_options;
+
+    connection_options.host = redis_host;
+    connection_options.port = redis_port;
+    connection_options.password = redis_password;
+    connection_options.db = redis_db;
+    sw::redis::ConnectionPoolOptions pool_options;
+
+    pool_options.size = pool_size;
+    pool_options.wait_timeout = std::chrono::milliseconds(100);
+
+    pool_options.connection_lifetime =
+        std::chrono::minutes(pool_connection_lifetime);
+
+    if (!mocking) {
+      // create redis client
+      redis_client =
+          std::make_unique<sw::redis::Redis>(connection_options, pool_options);
+      if (is_debug) {
+        MsgThread::Info(Fmt("Successfully connected to Redis instance."));
+      }
+    }
+    return true;
   }
-  return true;
-}
 
 /**
  * Writer-specific method called just before the threading system is
@@ -283,20 +275,11 @@ bool RedisWriter::DoWrite(int num_fields, const zeek::threading::Field *const *f
   zeek::ODesc buff;
   buff.Clear();
 
-  MsgThread::Info(Fmt("num_fields: %0d", num_fields));
   for (int i = 0; i < num_fields; ++i)
-    // MsgThread::Info(Fmt("Val: %s", vals[i]));
     params.push_back(CreateParams(vals[i]));
 
   if (uid_to_cid_mapping) {
-    // std::cout << std::get<1>(params[0]) << std::endl;
-    // std::cout << std::get<1>(params[1]) << std::endl;
-    redis_client->lpush(std::get<1>(params[1]).c_str(), std::get<1>(params[0]).c_str());
-    // for(auto &i: params ) {
-    //   std::cout << std::get<0>(i) << std::endl;
-    //   std::cout << std::get<1>(i) << std::endl;
-    //   std::cout << std::get<2>(i) << std::endl;
-    // }
+    redis_client->sadd(std::get<1>(params[1]).c_str(), std::get<1>(params[0]).c_str());
     return true;
   }
 
@@ -305,7 +288,7 @@ bool RedisWriter::DoWrite(int num_fields, const zeek::threading::Field *const *f
   const char *raw = (const char *)buff.Bytes();
   // send the formatted log entry to redis
   std::string entry = raw;
-  redis_client->lpush("zeek", entry);
+  redis_client->lpush(list_key, entry);
   return true;
 }
 

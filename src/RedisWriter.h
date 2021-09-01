@@ -57,6 +57,7 @@ private:
   int redis_db;
   int pool_size;
   int pool_connection_lifetime;
+  std::string list_key;
   zeek::threading::Formatter *formatter;
   std::unique_ptr<sw::redis::Redis> redis_client;
   std::unique_ptr<zeek::threading::formatter::Ascii> io;
