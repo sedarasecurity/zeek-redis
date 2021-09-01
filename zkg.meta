@@ -1,0 +1,11 @@
+[package]
+description = A Redis log writer for the Zeek NSM.
+tags = zeek plugin, redis, logging
+script_dir = scripts
+depends =
+    zeek >=4.0.0
+external_depends =
+    hiredis>=0.12.1
+    redis-plus-plus>=1.3.1
+build_command = (./configure --enable-debug --with-redisplusplus=/usr/local --zeek-dist=%(zeek_dist)s && make)
+test_command = make test

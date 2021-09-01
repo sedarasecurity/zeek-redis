@@ -1,0 +1,5 @@
+%h -x
+%h c++-header
+%cpp -std=c++17
+%c %cpp -pthread
+-I/usr/local/zeek/include

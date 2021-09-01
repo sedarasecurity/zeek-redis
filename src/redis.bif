@@ -1,0 +1,19 @@
+module Redis;
+
+const debug: bool;
+
+const mock: bool;
+
+const json_timestamps: JSON::TimestampFormat;
+
+const redis_host: string;
+
+const redis_port: count;
+
+const redis_db: count;
+
+const redis_password: string;
+
+const uid_to_cid_mapping: bool;
+const pool_size: count;
+const pool_connection_lifetime: count;
