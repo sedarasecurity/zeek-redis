@@ -280,6 +280,8 @@ bool RedisWriter::DoWrite(int num_fields, const zeek::threading::Field *const *f
 
   if (uid_to_cid_mapping) {
     redis_client->sadd(std::get<1>(params[1]).c_str(), std::get<1>(params[0]).c_str());
+    // set the key to expire in 1 day
+    redis_client->expire(std::get<1>(params[1]).c_str(), std::chrono::seconds(86400));
     return true;
   }
 
