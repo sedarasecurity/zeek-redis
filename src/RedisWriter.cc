@@ -15,7 +15,7 @@ using zeek::threading::Value;
 
 // The Constructor is called once for each log filter that uses this log writer.
 RedisWriter::RedisWriter(zeek::logging::WriterFrontend *frontend) : zeek::logging::WriterBackend(frontend) {
-  io = std::unique_ptr<zeek::threading::formatter::Ascii>(
+  io = std::shared_ptr<zeek::threading::formatter::Ascii>(
       new zeek::threading::formatter::Ascii(
           this, zeek::threading::formatter::Ascii::SeparatorInfo()));
   /**
@@ -114,21 +114,22 @@ bool RedisWriter::DoInit(const WriterInfo &info, int num_fields,
     connection_options.port = redis_port;
     connection_options.password = redis_password;
     connection_options.db = redis_db;
+    connection_options.keep_alive = true;
     sw::redis::ConnectionPoolOptions pool_options;
 
     pool_options.size = pool_size;
     pool_options.wait_timeout = std::chrono::milliseconds(100);
 
-    pool_options.connection_lifetime =
-        std::chrono::minutes(pool_connection_lifetime);
+    // pool_options.connection_lifetime =
+    //     std::chrono::minutes(pool_connection_lifetime);
 
     if (!mocking) {
       // create redis client
+      // std::make_shared<sw::redis::Redis>(connection_options,
+      // pool_options);
       redis_client =
-          std::make_unique<sw::redis::Redis>(connection_options, pool_options);
-      if (is_debug) {
-        MsgThread::Info(Fmt("Successfully connected to Redis instance."));
-      }
+          std::make_shared<sw::redis::Redis>(connection_options);
+      MsgThread::Info(Fmt("Successfully connected to Redis instance."));
     }
     return true;
   }

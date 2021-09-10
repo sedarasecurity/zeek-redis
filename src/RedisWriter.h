@@ -59,8 +59,8 @@ private:
   int pool_connection_lifetime;
   std::string list_key;
   zeek::threading::Formatter *formatter;
-  std::unique_ptr<sw::redis::Redis> redis_client;
-  std::unique_ptr<zeek::threading::formatter::Ascii> io;
+  std::shared_ptr<sw::redis::Redis> redis_client;
+  std::shared_ptr<zeek::threading::formatter::Ascii> io;
 };
 
 } // namespace writer
